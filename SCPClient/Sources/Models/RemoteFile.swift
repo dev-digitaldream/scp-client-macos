@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SCPClientBridge
 
 struct RemoteFile: Identifiable {
     let id = UUID()

@@ -63,10 +63,6 @@ typedef void(^ProgressBlock)(uint64_t transferred, uint64_t total);
 - (BOOL)createDirectoryAtPath:(NSString *)remotePath error:(NSError **)error;
 - (BOOL)deleteDirectoryAtPath:(NSString *)remotePath error:(NSError **)error;
 
-// Terminal
-- (NSString *)executeCommand:(NSString *)command error:(NSError **)error NS_SWIFT_NAME(executeCommand(_:));
-- (NSString *)executeCommandSimple:(NSString *)command NS_SWIFT_NAME(executeCommandSimple(_:));
-
 @end
 
 NS_ASSUME_NONNULL_END

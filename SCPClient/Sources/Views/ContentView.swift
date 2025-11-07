@@ -12,17 +12,23 @@ struct ContentView: View {
     @EnvironmentObject var connectionManager: ConnectionManager
 
     @State private var showingConnectionSheet = false
-    @State private var showingSidebar = true
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $showingSidebar) {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             // Sidebar avec les connexions favorites
             SidebarView(showingConnectionSheet: $showingConnectionSheet)
                 .frame(minWidth: 200)
         } detail: {
             // Vue principale
             if connectionService.isConnected {
-                FileExplorerView()
+                VSplitView {
+                    FileExplorerView()
+                        .frame(minHeight: 300)
+
+                    TerminalView()
+                        .frame(minHeight: 200, idealHeight: 300)
+                }
             } else {
                 WelcomeView(showingConnectionSheet: $showingConnectionSheet)
             }
@@ -32,7 +38,9 @@ struct ContentView: View {
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
-                Button(action: { showingSidebar.toggle() }) {
+                Button(action: {
+                    columnVisibility = columnVisibility == .all ? .detailOnly : .all
+                }) {
                     Image(systemName: "sidebar.left")
                 }
             }

@@ -15,6 +15,12 @@
 
 namespace SCPClient {
 
+// Type de protocole
+enum class ProtocolType {
+    SCP,   // SCP natif
+    SFTP   // SFTP
+};
+
 // Structure pour représenter un fichier distant
 struct RemoteFile {
     std::string name;
@@ -33,6 +39,9 @@ class SCPSession {
 public:
     SCPSession();
     ~SCPSession();
+
+    // Configuration
+    void setProtocol(ProtocolType protocol);
 
     // Connexion
     bool connect(const std::string& host, int port,
@@ -56,6 +65,9 @@ public:
     bool deleteFile(const std::string& remotePath);
     bool createDirectory(const std::string& remotePath);
     bool deleteDirectory(const std::string& remotePath);
+
+    // Terminal / Commandes SSH
+    std::string executeCommand(const std::string& command);
 
     // Informations
     std::string getLastError() const;

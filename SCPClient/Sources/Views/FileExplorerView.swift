@@ -39,7 +39,7 @@ struct FileExplorerView: View {
             }
         }
         .sheet(isPresented: $showingNewFolderSheet) {
-            NewFolderSheet(isPresented: $showingNewFolderSheet, folderName: $newFolderName)
+            NewFolderSheet(isPresented: $showingNewFolderSheet)
         }
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             handleDrop(providers: providers)

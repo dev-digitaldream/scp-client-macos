@@ -15,6 +15,7 @@ struct Connection: Identifiable, Codable {
     var username: String
     var authType: AuthType
     var privateKeyPath: String?
+    var `protocol`: ProtocolType
     var createdAt: Date
     var lastUsed: Date?
 
@@ -23,13 +24,19 @@ struct Connection: Identifiable, Codable {
         case privateKey
     }
 
+    enum ProtocolType: String, Codable, CaseIterable {
+        case scp = "SCP"
+        case sftp = "SFTP"
+    }
+
     init(id: UUID = UUID(),
          name: String,
          host: String,
          port: Int = 22,
          username: String,
          authType: AuthType = .password,
-         privateKeyPath: String? = nil) {
+         privateKeyPath: String? = nil,
+         protocol: ProtocolType = .sftp) {
         self.id = id
         self.name = name
         self.host = host
@@ -37,6 +44,7 @@ struct Connection: Identifiable, Codable {
         self.username = username
         self.authType = authType
         self.privateKeyPath = privateKeyPath
+        self.protocol = `protocol`
         self.createdAt = Date()
         self.lastUsed = nil
     }

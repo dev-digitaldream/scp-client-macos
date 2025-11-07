@@ -13,8 +13,7 @@ struct SidebarView: View {
 
     @Binding var showingConnectionSheet: Bool
     @State private var selectedConnection: Connection?
-    @State private var showingPasswordPrompt = false
-    @State private var connectionPassword = ""
+    @State private var editingConnection: Connection?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -50,11 +49,10 @@ struct SidebarView: View {
                         .contentShape(Rectangle())
                         .onTapGesture {
                             selectedConnection = connection
-                            showingPasswordPrompt = true
                         }
                         .contextMenu {
                             Button("Modifier") {
-                                // TODO: Edit connection
+                                editingConnection = connection
                             }
                             Divider()
                             Button("Supprimer", role: .destructive) {
@@ -65,13 +63,14 @@ struct SidebarView: View {
                 .listStyle(.sidebar)
             }
         }
-        .sheet(isPresented: $showingPasswordPrompt) {
-            if let connection = selectedConnection {
-                PasswordPromptView(
-                    connection: connection,
-                    isPresented: $showingPasswordPrompt
-                )
-            }
+        .sheet(item: $selectedConnection) { connection in
+            PasswordPromptView(
+                connection: connection,
+                selectedConnection: $selectedConnection
+            )
+        }
+        .sheet(item: $editingConnection) { connection in
+            ConnectionFormView(connection: connection, isEditing: true)
         }
     }
 }
@@ -105,7 +104,7 @@ struct ConnectionRow: View {
 // Prompt pour le password
 struct PasswordPromptView: View {
     let connection: Connection
-    @Binding var isPresented: Bool
+    @Binding var selectedConnection: Connection?
 
     @EnvironmentObject var connectionService: ConnectionService
     @EnvironmentObject var connectionManager: ConnectionManager
@@ -125,8 +124,11 @@ struct PasswordPromptView: View {
                     Text(connection.name)
                         .font(.title2)
                         .bold()
-                    Text("\(connection.username)@\(connection.host)")
+                    Text("\(connection.username)@\(connection.host):\(connection.port)")
                         .foregroundColor(.secondary)
+                    Text("Protocole: \(connection.protocol.rawValue)")
+                        .font(.caption)
+                        .foregroundColor(.blue)
                 }
             }
 
@@ -153,7 +155,7 @@ struct PasswordPromptView: View {
 
             HStack {
                 Button("Annuler") {
-                    isPresented = false
+                    selectedConnection = nil
                 }
                 .keyboardShortcut(.escape)
 
@@ -171,7 +173,7 @@ struct PasswordPromptView: View {
             }
         }
         .padding(30)
-        .frame(width: 400)
+        .frame(width: 450)
     }
 
     private func connect() {
@@ -191,7 +193,7 @@ struct PasswordPromptView: View {
 
                 await MainActor.run {
                     connectionManager.markConnectionUsed(connection)
-                    isPresented = false
+                    selectedConnection = nil
                 }
             } catch {
                 await MainActor.run {

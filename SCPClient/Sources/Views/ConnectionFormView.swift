@@ -11,18 +11,27 @@ struct ConnectionFormView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var connectionManager: ConnectionManager
 
+    let connection: Connection?
+    let isEditing: Bool
+
     @State private var name = ""
     @State private var host = ""
     @State private var port = 22
     @State private var username = ""
+    @State private var protocolType: Connection.ProtocolType = .sftp
     @State private var authType: Connection.AuthType = .password
     @State private var privateKeyPath = ""
+
+    init(connection: Connection? = nil, isEditing: Bool = false) {
+        self.connection = connection
+        self.isEditing = isEditing
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Nouvelle connexion")
+                Text(isEditing ? "Modifier la connexion" : "Nouvelle connexion")
                     .font(.title2)
                     .bold()
 
@@ -51,6 +60,12 @@ struct ConnectionFormView: View {
                         .help("Port SSH (par défaut: 22)")
 
                     TextField("Nom d'utilisateur", text: $username)
+
+                    Picker("Protocole", selection: $protocolType) {
+                        Text("SCP").tag(Connection.ProtocolType.scp)
+                        Text("SFTP").tag(Connection.ProtocolType.sftp)
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 Section("Authentification") {
@@ -93,7 +108,7 @@ struct ConnectionFormView: View {
 
                 Spacer()
 
-                Button("Enregistrer") {
+                Button(isEditing ? "Mettre à jour" : "Enregistrer") {
                     saveConnection()
                 }
                 .keyboardShortcut(.return)
@@ -103,6 +118,18 @@ struct ConnectionFormView: View {
             .padding()
         }
         .frame(width: 500, height: 500)
+        .onAppear {
+            if let connection = connection, isEditing {
+                // Charger les données de la connexion existante
+                name = connection.name
+                host = connection.host
+                port = connection.port
+                username = connection.username
+                protocolType = connection.protocol
+                authType = connection.authType
+                privateKeyPath = connection.privateKeyPath ?? ""
+            }
+        }
     }
 
     private var isValid: Bool {
@@ -111,16 +138,32 @@ struct ConnectionFormView: View {
     }
 
     private func saveConnection() {
-        let connection = Connection(
-            name: name,
-            host: host,
-            port: port,
-            username: username,
-            authType: authType,
-            privateKeyPath: authType == .privateKey ? privateKeyPath : nil
-        )
-
-        connectionManager.addConnection(connection)
+        if isEditing, let connection = connection {
+            // Mise à jour de la connexion existante
+            var updatedConnection = connection
+            updatedConnection.name = name
+            updatedConnection.host = host
+            updatedConnection.port = port
+            updatedConnection.username = username
+            updatedConnection.authType = authType
+            updatedConnection.privateKeyPath = authType == .privateKey ? privateKeyPath : nil
+            updatedConnection.protocol = protocolType
+            
+            connectionManager.updateConnection(updatedConnection)
+        } else {
+            // Création d'une nouvelle connexion
+            let newConnection = Connection(
+                name: name,
+                host: host,
+                port: port,
+                username: username,
+                authType: authType,
+                privateKeyPath: authType == .privateKey ? privateKeyPath : nil,
+                protocol: protocolType
+            )
+            
+            connectionManager.addConnection(newConnection)
+        }
         dismiss()
     }
 

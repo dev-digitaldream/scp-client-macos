@@ -21,12 +21,14 @@ let package = Package(
             name: "SCPClient",
             dependencies: ["SCPClientBridge"],
             path: "SCPClient/Sources",
-            exclude: ["Services/SCPSession.cpp", "Services/SCPSession.h"],
-            resources: [
-                .process("Resources")
+            exclude: [
+                "Services/SCPSession.cpp",
+                "Services/SCPSession.h",
+                "Services/SCPSessionBridge.mm",
+                "Services/SCPSessionBridge.h"
             ],
-            swiftSettings: [
-                .enableExperimentalFeature("StrictConcurrency")
+            resources: [
+                .process("../Assets.xcassets")
             ]
         ),
 
@@ -39,13 +41,19 @@ let package = Package(
             publicHeadersPath: ".",
             cxxSettings: [
                 .headerSearchPath("."),
-                .headerSearchPath("/opt/homebrew/include"),
-                .headerSearchPath("/usr/local/include"),
+                .unsafeFlags([
+                    "-I/opt/homebrew/include",
+                    "-I/opt/homebrew/Cellar/libssh2/1.11.1/include"
+                ])
             ],
             linkerSettings: [
                 .linkedLibrary("ssh2"),
                 .linkedLibrary("ssl"),
                 .linkedLibrary("crypto"),
+                .unsafeFlags([
+                    "-L/opt/homebrew/lib",
+                    "-L/usr/local/lib"
+                ]),
             ]
         )
     ],

@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import SCPClientBridge
 
 class ConnectionService: ObservableObject {
     private let bridge = SCPSessionBridge()
@@ -22,26 +23,23 @@ class ConnectionService: ObservableObject {
 
     // Connexion avec password
     func connect(to connection: Connection, password: String) async throws {
-        var error: NSError?
-
-        let success = bridge.connect(
-            toHost: connection.host,
-            port: connection.port,
-            username: connection.username,
-            password: password,
-            error: &error
-        )
-
-        if success {
+        do {
+            try bridge.connect(
+                toHost: connection.host,
+                port: connection.port,
+                username: connection.username,
+                password: password
+            )
+            
             await MainActor.run {
                 self.isConnected = true
                 self.currentConnection = connection
                 self.errorMessage = nil
             }
             try await loadDirectory("/")
-        } else {
-            throw error ?? NSError(domain: "ConnectionError", code: -1,
-                                  userInfo: [NSLocalizedDescriptionKey: "Connection failed"])
+        } catch {
+            throw NSError(domain: "ConnectionError", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "Failed to connect: \(error.localizedDescription)"])
         }
     }
 
@@ -52,27 +50,24 @@ class ConnectionService: ObservableObject {
                          userInfo: [NSLocalizedDescriptionKey: "No private key path specified"])
         }
 
-        var error: NSError?
-
-        let success = bridge.connect(
-            toHost: connection.host,
-            port: connection.port,
-            username: connection.username,
-            privateKeyPath: keyPath,
-            passphrase: passphrase,
-            error: &error
-        )
-
-        if success {
+        do {
+            try bridge.connect(
+                toHost: connection.host,
+                port: connection.port,
+                username: connection.username,
+                privateKeyPath: keyPath,
+                passphrase: passphrase
+            )
+            
             await MainActor.run {
                 self.isConnected = true
                 self.currentConnection = connection
                 self.errorMessage = nil
             }
             try await loadDirectory("/")
-        } else {
-            throw error ?? NSError(domain: "ConnectionError", code: -1,
-                                  userInfo: [NSLocalizedDescriptionKey: "Connection failed"])
+        } catch {
+            throw NSError(domain: "ConnectionError", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "Failed to connect with key: \(error.localizedDescription)"])
         }
     }
 
@@ -91,10 +86,9 @@ class ConnectionService: ObservableObject {
                          userInfo: [NSLocalizedDescriptionKey: "Not connected"])
         }
 
-        var error: NSError?
-        guard let files = bridge.listDirectory(atPath: path, error: &error) else {
-            throw error ?? NSError(domain: "ConnectionError", code: -1,
-                                  userInfo: [NSLocalizedDescriptionKey: "Failed to list directory"])
+        guard let files = try? bridge.listDirectory(atPath: path) else {
+            throw NSError(domain: "ConnectionError", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "Failed to list directory"])
         }
 
         let remoteFiles = files.map { RemoteFile(from: $0) }
@@ -148,28 +142,20 @@ class ConnectionService: ObservableObject {
 
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                var error: NSError?
-
-                let success = self.bridge.uploadFile(
-                    from: localPath,
-                    to: remotePath,
-                    progress: { transferred, total in
-                        task.updateProgress(transferred: transferred, total: total)
-                    },
-                    error: &error
-                )
-
-                if success {
+                do {
+                    try self.bridge.uploadFile(
+                        from: localPath,
+                        to: remotePath,
+                        progress: { transferred, total in
+                            task.updateProgress(transferred: transferred, total: total)
+                        }
+                    )
                     task.complete()
                     continuation.resume()
-                } else {
-                    let errorMsg = error?.localizedDescription ?? "Upload failed"
+                } catch {
+                    let errorMsg = error.localizedDescription
                     task.fail(error: errorMsg)
-                    continuation.resume(throwing: error ?? NSError(
-                        domain: "TransferError",
-                        code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: errorMsg]
-                    ))
+                    continuation.resume(throwing: error)
                 }
             }
         }
@@ -195,28 +181,20 @@ class ConnectionService: ObservableObject {
 
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                var error: NSError?
-
-                let success = self.bridge.downloadFile(
-                    from: remotePath,
-                    to: localPath,
-                    progress: { transferred, total in
-                        task.updateProgress(transferred: transferred, total: total)
-                    },
-                    error: &error
-                )
-
-                if success {
+                do {
+                    try self.bridge.downloadFile(
+                        from: remotePath,
+                        to: localPath,
+                        progress: { transferred, total in
+                            task.updateProgress(transferred: transferred, total: total)
+                        }
+                    )
                     task.complete()
                     continuation.resume()
-                } else {
-                    let errorMsg = error?.localizedDescription ?? "Download failed"
+                } catch {
+                    let errorMsg = error.localizedDescription
                     task.fail(error: errorMsg)
-                    continuation.resume(throwing: error ?? NSError(
-                        domain: "TransferError",
-                        code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: errorMsg]
-                    ))
+                    continuation.resume(throwing: error)
                 }
             }
         }
@@ -224,11 +202,10 @@ class ConnectionService: ObservableObject {
 
     // Créer un dossier
     func createDirectory(at path: String) async throws {
-        var error: NSError?
-        let success = bridge.createDirectory(atPath: path, error: &error)
-
-        if !success {
-            throw error ?? NSError(domain: "ConnectionError", code: -1,
+        do {
+            try bridge.createDirectory(atPath: path)
+        } catch {
+            throw NSError(domain: "ConnectionError", code: -1,
                                   userInfo: [NSLocalizedDescriptionKey: "Failed to create directory"])
         }
 
@@ -237,11 +214,10 @@ class ConnectionService: ObservableObject {
 
     // Supprimer un fichier
     func deleteFile(at path: String) async throws {
-        var error: NSError?
-        let success = bridge.deleteFile(atPath: path, error: &error)
-
-        if !success {
-            throw error ?? NSError(domain: "ConnectionError", code: -1,
+        do {
+            try bridge.deleteFile(atPath: path)
+        } catch {
+            throw NSError(domain: "ConnectionError", code: -1,
                                   userInfo: [NSLocalizedDescriptionKey: "Failed to delete file"])
         }
 
@@ -250,14 +226,28 @@ class ConnectionService: ObservableObject {
 
     // Supprimer un dossier
     func deleteDirectory(at path: String) async throws {
-        var error: NSError?
-        let success = bridge.deleteDirectory(atPath: path, error: &error)
-
-        if !success {
-            throw error ?? NSError(domain: "ConnectionError", code: -1,
+        do {
+            try bridge.deleteDirectory(atPath: path)
+        } catch {
+            throw NSError(domain: "ConnectionError", code: -1,
                                   userInfo: [NSLocalizedDescriptionKey: "Failed to delete directory"])
         }
 
         try await loadDirectory(currentDirectory)
+    }
+    
+    // Exécuter une commande SSH sur le serveur distant
+    func executeCommand(_ command: String) async throws -> String {
+        guard isConnected else {
+            throw NSError(domain: "ConnectionError", code: -1,
+                         userInfo: [NSLocalizedDescriptionKey: "Not connected"])
+        }
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let output = self.bridge.executeCommandSimple(command)
+                continuation.resume(returning: output)
+            }
+        }
     }
 }

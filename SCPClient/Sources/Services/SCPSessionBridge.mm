@@ -14,8 +14,9 @@ static NSString *const SCPErrorDomain = @"com.scpclient.error";
 @implementation RemoteFileInfo
 @end
 
-@interface SCPSessionBridge()
-@property (nonatomic) std::unique_ptr<SCPClient::SCPSession> session;
+@interface SCPSessionBridge() {
+    std::unique_ptr<SCPClient::SCPSession> _session;
+}
 @end
 
 @implementation SCPSessionBridge
@@ -26,6 +27,10 @@ static NSString *const SCPErrorDomain = @"com.scpclient.error";
         _session = std::make_unique<SCPClient::SCPSession>();
     }
     return self;
+}
+
+- (void)setProtocolSCP:(BOOL)useSCP {
+    _session->setProtocol(useSCP ? SCPClient::ProtocolType::SCP : SCPClient::ProtocolType::SFTP);
 }
 
 - (BOOL)connectToHost:(NSString *)host
@@ -228,6 +233,30 @@ static NSString *const SCPErrorDomain = @"com.scpclient.error";
     }
 
     return success;
+}
+
+- (NSString *)executeCommand:(NSString *)command error:(NSError **)error {
+    std::string cmdStr = [command UTF8String];
+    std::string output = _session->executeCommand(cmdStr);
+
+    if (output.empty() && !_session->isConnected()) {
+        if (error) {
+            std::string errMsg = _session->getLastError();
+            NSDictionary *userInfo = @{
+                NSLocalizedDescriptionKey: [NSString stringWithUTF8String:errMsg.c_str()]
+            };
+            *error = [NSError errorWithDomain:SCPErrorDomain code:8 userInfo:userInfo];
+        }
+        return @"";
+    }
+
+    return [NSString stringWithUTF8String:output.c_str()];
+}
+
+- (NSString *)executeCommandSimple:(NSString *)command {
+    std::string cmdStr = [command UTF8String];
+    std::string output = _session->executeCommand(cmdStr);
+    return [NSString stringWithUTF8String:output.c_str()];
 }
 
 @end
